@@ -20,10 +20,6 @@ const CommunityPage: React.FC<CommunityPageProps> = ({ communityData }) => {
   console.log("🚀 ~ communityData:", communityData);
   const setCommunityStateValue = useSetRecoilState(communityState);
 
-  if (!communityData) {
-    return <CommunityNotFound />;
-  }
-
   //? afert rendring, pass the community data to the posts component
   useEffect(() => {
     setCommunityStateValue((prev) => ({
@@ -33,6 +29,11 @@ const CommunityPage: React.FC<CommunityPageProps> = ({ communityData }) => {
   }, [communityData]);
 
   console.log(communityData);
+
+  if (!communityData) {
+    return <CommunityNotFound />;
+  }
+
   return (
     <>
       <Header communityData={communityData} />
