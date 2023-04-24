@@ -10,6 +10,7 @@ import {
   collection,
   getDocs,
   limit,
+  onSnapshot,
   orderBy,
   query,
   where,
@@ -40,6 +41,7 @@ const Home: NextPage = () => {
 
   //? fetch some posts from each community that the user is in
   const buildUserHomeFeed = async () => {
+    console.log("buildUserHomeFeed");
     setLoading(true);
     try {
       if (communityStateValue.mySnippets.length) {
@@ -76,6 +78,7 @@ const Home: NextPage = () => {
 
   //? for user not loged in
   const buildNoUserHomeFeed = async () => {
+    console.log("buildNoUserHomeFeed");
     setLoading(true);
     try {
       //? query from popular posts
@@ -104,6 +107,8 @@ const Home: NextPage = () => {
   const getUserPostVotes = async () => {
     try {
       const postIds = postStateValue.posts.map((post) => post.id);
+      console.log("🚀 ~ getUserPostVotes ~ postIds:", postIds);
+
       const postVotesQuery = query(
         collection(firestore, `users/${user?.uid}/postVotes`),
         where("postId", "in", postIds)
@@ -114,12 +119,13 @@ const Home: NextPage = () => {
         id: doc.id,
         ...doc.data(),
       }));
+      console.log("🚀 ~ postVotes ~ postVotes:", postVotes);
 
       setPostStateValue((prev) => ({
         ...prev,
         postVotes: postVotes as PostVote[],
       }));
-      console.log(postVotes);
+      console.log("postStateValue.postVotes", postStateValue.postVotes);
     } catch (error) {
       console.log("getUserPostVotes error", error);
     }
@@ -129,16 +135,20 @@ const Home: NextPage = () => {
   //?2, then this useEffect will fire to buildUserHomeFeed
   useEffect(() => {
     if (communityStateValue.snippetsFetched) buildUserHomeFeed();
+    console.log("useEffect first");
   }, [communityStateValue.snippetsFetched]);
 
   useEffect(() => {
-    if (!user && loadingUser) buildNoUserHomeFeed();
+    if (!user && !loadingUser) buildNoUserHomeFeed();
+    console.log("useEffect second");
   }, [user, loadingUser]);
 
   useEffect(() => {
-    if (user && postStateValue.posts.length) getUserPostVotes();
+    if (!user?.uid || !postStateValue.posts.length) return;
+    getUserPostVotes();
+    console.log("useEffect third");
 
-    //? clean up function
+    // //? clean up function
     return () => {
       setPostStateValue((prev) => ({
         ...prev,
@@ -146,6 +156,32 @@ const Home: NextPage = () => {
       }));
     };
   }, [user?.uid, postStateValue.posts]);
+
+  //? render posts for making simple
+  const renderPosts = () => {
+    return postStateValue.posts.map((post) => {
+      const userVoteValue = postStateValue.postVotes.find(
+        (item) => item.postId === post.id
+      )?.voteValue;
+
+      const userIsCreator = user?.uid === post.creatorId;
+
+      return (
+        <>
+          <PostItem
+            key={post.id}
+            post={post}
+            onSelectPost={onSelectPost}
+            onDeletePost={onDeletePost}
+            onVote={onVote}
+            userVoteValue={userVoteValue}
+            userIsCreator={userIsCreator}
+            homePage
+          />
+        </>
+      );
+    });
+  };
 
   return (
     <>
@@ -163,21 +199,31 @@ const Home: NextPage = () => {
           ) : (
             <Stack>
               {postStateValue.posts.map((post) => (
-                <PostItem
-                  key={post.id}
-                  post={post}
-                  onSelectPost={onSelectPost}
-                  onDeletePost={onDeletePost}
-                  onVote={onVote}
-                  userVoteValue={
-                    postStateValue.postVotes.find(
-                      (item) => item.postId === post.id
-                    )?.voteValue
-                  }
-                  userIsCreator={user?.uid === post.creatorId}
-                  homePage
-                />
+                <>
+                  <PostItem
+                    key={post.id}
+                    post={post}
+                    onSelectPost={onSelectPost}
+                    onDeletePost={onDeletePost}
+                    onVote={onVote}
+                    userVoteValue={
+                      postStateValue.postVotes.find(
+                        (item) => item.postId === post.id
+                      )?.voteValue
+                    }
+                    userIsCreator={user?.uid === post.creatorId}
+                    homePage
+                  />
+                  <p>
+                    {
+                      postStateValue.postVotes.find(
+                        (item) => item.postId === post.id
+                      )?.voteValue
+                    }
+                  </p>
+                </>
               ))}
+              {/* {renderPosts()} */}
             </Stack>
           )}
         </>

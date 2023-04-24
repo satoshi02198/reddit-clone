@@ -28,7 +28,6 @@ const CommunityPage: React.FC<CommunityPageProps> = ({ communityData }) => {
     }));
   }, [communityData]);
 
-  console.log(communityData);
 
   if (!communityData) {
     return <CommunityNotFound />;
