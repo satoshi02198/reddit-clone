@@ -21,14 +21,15 @@ import PostLoader from "@/components/Posts/PostLoader";
 import { Stack } from "@chakra-ui/react";
 import PostItem from "@/components/Posts/PostItem";
 import CreatePostLink from "@/components/Community/CreatePostLink";
-import useCommunityData from "@/hooks/useCommunityData";
 import Recommendation from "@/components/Community/Recommendation";
 import Premium from "@/components/Community/Premium";
 import PersonalHome from "@/components/Community/PersonalHome";
+import useCommunityData from "@/hooks/useCommunityData";
 
 const Home: NextPage = () => {
   const [user, loadingUser] = useAuthState(auth);
   const [loading, setLoading] = useState(false);
+
   const {
     postStateValue,
     setPostStateValue,
@@ -38,10 +39,11 @@ const Home: NextPage = () => {
   } = usePosts();
 
   const { communityStateValue } = useCommunityData();
+  console.log("🚀 ~ communityStateValue:", communityStateValue.mySnippets);
 
   //? fetch some posts from each community that the user is in
   const buildUserHomeFeed = async () => {
-    console.log("buildUserHomeFeed");
+    // console.log("buildUserHomeFeed");
     setLoading(true);
     try {
       if (communityStateValue.mySnippets.length) {
@@ -54,6 +56,7 @@ const Home: NextPage = () => {
 
         const postQuery = query(
           collection(firestore, "posts"),
+          //? myCommunityId is array
           where("communityId", "in", myCommunityIds),
           limit(10)
         );
@@ -78,7 +81,6 @@ const Home: NextPage = () => {
 
   //? for user not loged in
   const buildNoUserHomeFeed = async () => {
-    console.log("buildNoUserHomeFeed");
     setLoading(true);
     try {
       //? query from popular posts
@@ -102,30 +104,39 @@ const Home: NextPage = () => {
     }
     setLoading(false);
   };
-
+  //TODO
+  // change to getposts function like post.tsx has
   //? get votes
   const getUserPostVotes = async () => {
     try {
       const postIds = postStateValue.posts.map((post) => post.id);
-      console.log("🚀 ~ getUserPostVotes ~ postIds:", postIds);
 
       const postVotesQuery = query(
         collection(firestore, `users/${user?.uid}/postVotes`),
         where("postId", "in", postIds)
       );
 
+      // const unsubscribe = onSnapshot(postVotesQuery, (querySnapshot) => {
+      //   const postVotes = querySnapshot.docs.map((postVote) => ({
+      //     id: postVote.id,
+      //     ...postVote.data(),
+      //   }));
+      //   setPostStateValue((prev) => ({
+      //     ...prev,
+      //     postVotes: postVotes as PostVote[],
+      //   }));
+      // });
+      // return () => unsubscribe();
       const postVoteDocs = await getDocs(postVotesQuery);
       const postVotes = postVoteDocs.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       }));
-      console.log("🚀 ~ postVotes ~ postVotes:", postVotes);
 
       setPostStateValue((prev) => ({
         ...prev,
         postVotes: postVotes as PostVote[],
       }));
-      console.log("postStateValue.postVotes", postStateValue.postVotes);
     } catch (error) {
       console.log("getUserPostVotes error", error);
     }
@@ -135,18 +146,19 @@ const Home: NextPage = () => {
   //?2, then this useEffect will fire to buildUserHomeFeed
   useEffect(() => {
     if (communityStateValue.snippetsFetched) buildUserHomeFeed();
-    console.log("useEffect first");
+    // console.log("useEffect first");
   }, [communityStateValue.snippetsFetched]);
 
   useEffect(() => {
+    //? needs loadingUser becouse user maybe loged in deleyed
     if (!user && !loadingUser) buildNoUserHomeFeed();
-    console.log("useEffect second");
+    // console.log("useEffect second");
   }, [user, loadingUser]);
 
   useEffect(() => {
     if (!user?.uid || !postStateValue.posts.length) return;
     getUserPostVotes();
-    console.log("useEffect third");
+    // console.log("useEffect third");
 
     // //? clean up function
     return () => {
@@ -156,32 +168,6 @@ const Home: NextPage = () => {
       }));
     };
   }, [user?.uid, postStateValue.posts]);
-
-  //? render posts for making simple
-  const renderPosts = () => {
-    return postStateValue.posts.map((post) => {
-      const userVoteValue = postStateValue.postVotes.find(
-        (item) => item.postId === post.id
-      )?.voteValue;
-
-      const userIsCreator = user?.uid === post.creatorId;
-
-      return (
-        <>
-          <PostItem
-            key={post.id}
-            post={post}
-            onSelectPost={onSelectPost}
-            onDeletePost={onDeletePost}
-            onVote={onVote}
-            userVoteValue={userVoteValue}
-            userIsCreator={userIsCreator}
-            homePage
-          />
-        </>
-      );
-    });
-  };
 
   return (
     <>
@@ -208,19 +194,12 @@ const Home: NextPage = () => {
                     onVote={onVote}
                     userVoteValue={
                       postStateValue.postVotes.find(
-                        (item) => item.postId === post.id
+                        (vote) => vote.postId === post.id
                       )?.voteValue
                     }
                     userIsCreator={user?.uid === post.creatorId}
                     homePage
                   />
-                  <p>
-                    {
-                      postStateValue.postVotes.find(
-                        (item) => item.postId === post.id
-                      )?.voteValue
-                    }
-                  </p>
                 </>
               ))}
               {/* {renderPosts()} */}

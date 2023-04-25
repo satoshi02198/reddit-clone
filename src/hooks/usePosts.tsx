@@ -9,16 +9,18 @@ import {
   query,
   where,
   getDocs,
+  getDoc,
 } from "firebase/firestore";
 import { deleteObject, ref } from "firebase/storage";
 import { useRouter } from "next/router";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { useRecoilState, useRecoilValue, useSetRecoilState } from "recoil";
 import { Post, postState, PostVote } from "../atoms/postAtom";
 
 const usePosts = () => {
   const [user] = useAuthState(auth);
+
   const router = useRouter();
   const [postStateValue, setPostStateValue] = useRecoilState(postState);
   const currentCommunity = useRecoilValue(communityState).currentCommunity;
@@ -57,6 +59,7 @@ const usePosts = () => {
 
       //? if new vote
       if (!existingVote) {
+        console.log("new vote");
         //? create a new postVote document on firestore on 'users'
         const postVoteRef = doc(
           collection(firestore, "users", `${user?.uid}/postVotes`)
@@ -76,6 +79,8 @@ const usePosts = () => {
 
         //? in case already voted
       } else {
+        console.log("already voted");
+        //? if user already voted to the post
         const postVoteRef = doc(
           firestore,
           "users",
@@ -83,7 +88,9 @@ const usePosts = () => {
         );
 
         if (existingVote.voteValue === vote) {
+          console.log("up to neutural");
           //? removing their vote (up => neutural or down => neutural)
+
           //? add/subtract 1 to/from post.voteStatus
           updatedPost.voteStatus = voteStatus - vote;
           updatedPostVotes = updatedPostVotes.filter(
@@ -97,26 +104,36 @@ const usePosts = () => {
 
         //? flipping their vote (up => down or down => up)
         else {
+          console.log("up to down or down to up");
+          //? update the existing postVote document on firestore
+          batch.update(postVoteRef, {
+            voteValue: vote,
+          });
           //? add/subtract 2 to/from post.voteStatus
           updatedPost.voteStatus = voteStatus + 2 * vote;
           //? find index in postVotes in PostState
           const voteIndex = postStateValue.postVotes.findIndex(
             (vote) => vote.id === existingVote.id
           );
+
           //? use index to update postVotes
           updatedPostVotes[voteIndex] = {
             ...existingVote,
             voteValue: vote,
           };
-          //? update the existing postVote document on firestore
-          batch.update(postVoteRef, {
-            voteValue: vote,
-          });
 
           voteChange = 2 * vote;
         }
       }
-      //? update the state
+
+      //? update our post document of 'posts'  on firestore
+      const postRef = doc(firestore, "posts", post.id!);
+      batch.update(postRef, { voteStatus: voteStatus + voteChange });
+
+      await batch.commit();
+
+      //? update the state it is better to update after commit athewise sometimes
+      //? postStateValue doen't update
       const postIdx = postStateValue.posts.findIndex(
         (item) => item.id === post.id
       );
@@ -134,11 +151,43 @@ const usePosts = () => {
         }));
       }
 
-      //? update our post document of 'posts'  on firestore
-      const postRef = doc(firestore, "posts", post.id!);
-      batch.update(postRef, { voteStatus: voteStatus + voteChange });
+      // //? chatGPT suggestions start it is work but too many mount
+      // // Fetch updated post and postVotes
+      // const postRef2 = doc(firestore, "posts", post.id!);
+      // const postDoc = await getDoc(postRef2);
+      // const updatedPost2 = { id: postDoc.id, ...postDoc.data() } as Post;
 
-      await batch.commit();
+      // const postVotesQuery = query(
+      //   collection(firestore, `users/${user?.uid}/postVotes`),
+      //   where("postId", "==", post.id)
+      // );
+      // const postVoteDocs = await getDocs(postVotesQuery);
+      // const updatedPostVotes2 = postVoteDocs.docs.map((doc) => ({
+      //   id: doc.id,
+      //   ...doc.data(),
+      // })) as PostVote[];
+
+      // // Update the state
+      // const postIdx2 = postStateValue.posts.findIndex(
+      //   (item) => item.id === post.id
+      // );
+      // setPostStateValue((prev) => ({
+      //   ...prev,
+      //   posts: [
+      //     ...prev.posts.slice(0, postIdx2),
+      //     updatedPost,
+      //     ...prev.posts.slice(postIdx2 + 1),
+      //   ],
+      //   postVotes: updatedPostVotes2,
+      // }));
+
+      // if (postStateValue.selectedPost) {
+      //   setPostStateValue((prev) => ({
+      //     ...prev,
+      //     selectedPost: updatedPost2,
+      //   }));
+      // }
+      //? chatGPT suggestions end
 
       //? to reflesh postStateValue
       //? but ux is bad

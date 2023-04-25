@@ -25,7 +25,6 @@ const Recommendation: React.FC<RecommendationProps> = () => {
   const [communities, setCommunities] = useState<Community[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const { communityStateValue, onjoinOrLeaveCommunity } = useCommunityData();
-  console.log(communities);
 
   const getCommunityRecommendations = async () => {
     setLoading(true);

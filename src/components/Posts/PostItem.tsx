@@ -41,6 +41,7 @@ type PostItemProps = {
   onDeletePost: (post: Post) => Promise<boolean>;
   onSelectPost?: (post: Post) => void;
   homePage?: boolean;
+  // loading?: boolean;
 };
 
 const PostItem: React.FC<PostItemProps> = ({
@@ -51,6 +52,7 @@ const PostItem: React.FC<PostItemProps> = ({
   onDeletePost,
   onSelectPost,
   homePage,
+  // loading,
 }) => {
   const router = useRouter();
   const [loadingImage, setLoadingImage] = useState(true);

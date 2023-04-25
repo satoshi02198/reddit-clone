@@ -16,7 +16,6 @@ import useDirectory from "@/hooks/useDirectory";
 
 const Directory: React.FC = () => {
   const { directoryState, toggleMenuOpen } = useDirectory();
-  console.log(directoryState);
   return (
     <Menu isOpen={directoryState.isOpen}>
       <MenuButton

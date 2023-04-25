@@ -20,7 +20,6 @@ const MenuListItem: React.FC<MenuListItemProps> = ({
 }) => {
   const { onSelectMenuItem } = useDirectory();
 
-  console.log(displayText);
   return (
     <MenuItem
       width="100%"
